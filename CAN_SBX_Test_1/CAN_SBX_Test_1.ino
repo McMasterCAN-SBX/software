@@ -4,9 +4,9 @@
 #include "DHT.h"
 
 #define BUFFER_SIZE 100
-#define DHTPIN 5  // Digital pin connected to the DHT sensor
+#define DHTPIN 7  // Digital pin connected to the DHT sensor
 // Feather HUZZAH ESP8266 note: use pins 3, 4, 5, 12, 13 or 14 --
-#define DHTTYPE DHT11  // DHT 11
+#define DHTTYPE DHT22  // DHT 11
 DHT dht(DHTPIN, DHTTYPE);
 Adafruit_BMP085 bmp;
 SemaphoreHandle_t sem;
