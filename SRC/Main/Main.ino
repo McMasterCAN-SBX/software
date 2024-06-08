@@ -13,8 +13,11 @@
 #define LEDPIN 1
 
 // DHT-22 Configuration
-#define DHTPIN 7           // Pin connected to DHT22
-#define DHTTYPE DHT22      // DHT 22 (AM2302)
+#define DHTPIN 7       // Pin connected to DHT22
+#define DHTTYPE DHT22  // DHT 22 (AM2302)
+#define DHT_STATUS 1
+#define OZONE_STATUS 2
+#define BARO_STATUS 4
 DHT dht(DHTPIN, DHTTYPE);  // Initialize DHT sensor for normal 16MHz Arduino
 
 // Ozone Sensor Configuration
@@ -35,29 +38,32 @@ File myFile;
 // Variables for DHT-22
 float hum;   // Stores humidity value
 float temp;  // Stores temperature value
-char fla[20], flb[20], datastr[50], output[100];
+char fla[20], flb[20], datastr[50], output[100], status;
 
 void setup() {
   // Serial setup
   Serial.begin(9600);
+  status = (0 | DHT_STATUS);
   while (!Serial) {
     ;  // wait for serial port to connect. Needed for native USB port only
   }
-  pinMode(1, OUTPUT);
+  pinMode(LEDPIN, OUTPUT);
   // Initialize DHT22
   dht.begin();
 
   // Initialize Ozone Sensor
-  while (!Ozone.begin(Ozone_IICAddress)) {
-    Serial.println(F("I2c device number error!"));
-    delay(1000);
+  if (status & OZONE_STATUS) {
+    while (!Ozone.begin(Ozone_IICAddress)) {
+      Serial.println(F("I2c device number error!"));
+      delay(1000);
+    }
+    Serial.println(F("I2c connect success!"));
+    Ozone.setModes(MEASURE_MODE_PASSIVE);
   }
-  Serial.println(F("I2c connect success!"));
-  Ozone.setModes(MEASURE_MODE_PASSIVE);
-
   // Initialize Barometric Pressure Sensor
-  baro.init();
-
+  if (status & BARO_STATUS) {
+    baro.init();
+  }
   // Initialize SD Card
   // Serial.print(F("\nInitializing SD card..."));
   if (!card.init(SPI_HALF_SPEED, chipSelect)) {
@@ -145,44 +151,49 @@ void setup() {
   } else {
     Serial.println(F("Error opening Altitude.csv"));
   }
+  digitalWrite(LEDPIN, LOW);
 }
 
 void loop() {
 
-  hum = dht.readHumidity();
-  temp = dht.readTemperature();
-  // String humStr = String(hum, 2) + "," + String(temp, 2);
-  dtostrf(hum, 4, 3, fla);
-  dtostrf(temp, 4, 3, flb);
-  sprintf(datastr, "%s,%s", hum, temp);
-  // write2Sd("dht22.csv", humStr);
-  write2Sd("dht22.csv");
-  // Serial.print("Humidity: ");
+  if (status & DHT_STATUS) {
+    hum = dht.readHumidity();
+    temp = dht.readTemperature();
+    // String humStr = String(hum, 2) + "," + String(temp, 2);
+    dtostrf(hum, 4, 3, fla);
+    dtostrf(temp, 4, 3, flb);
+    sprintf(datastr, "%s,%s", hum, temp);
+    // write2Sd("dht22.csv", humStr);
+    write2Sd("dht22.csv");
+  }  // Serial.print("Humidity: ");
   // Serial.print(hum);
   // Serial.print(" %, Temp: ");
   // Serial.print(temp);
   // Serial.println(" Celsius");
-  int16_t ozoneConcentration = Ozone.readOzoneData(COLLECT_NUMBER);
-  sprintf(datastr, "%hd", ozoneConcentration);
-  // write2Sd("Ozone.csv", ozoneConc);
-  write2Sd("Ozone.csv");
-  // Serial.print("Ozone concentration is ");
+  if (status & OZONE_STATUS) {
+    int16_t ozoneConcentration = Ozone.readOzoneData(COLLECT_NUMBER);
+    sprintf(datastr, "%hd", ozoneConcentration);
+    // write2Sd("Ozone.csv", ozoneConc);
+    write2Sd("Ozone.csv");
+  }  // Serial.print("Ozone concentration is ");
   // Serial.print(ozoneConcentration);
   // Serial.println(" PPB.");
 
   // Barometric Pressure Sensor: Read and print height in centimeters and feet
-  int alt = baro.getHeightCentiMeters();
-  float altInM = (alt + 0.0f) / 100.0f;
-  // String altStr = String(altInCm, 2);  // Convert float to String with 2 decimal places
-  // Convert float to char array
-  dtostrf(altInM, 4, 3, datastr);
-  // Serial.println(altStr);
-  // write2Sd("Altitude.csv", altStr);
-  write2Sd("Altitude.csv");
-  digitalWrite(LEDPIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(1000);            // wait for a second
-  digitalWrite(LEDPIN, LOW);  // turn the LED off by making the voltage LOW
-  delay(1000);            // wait for a second   // turn the LED off by making the voltage LOW
+  if (status & BARO_STATUS) {
+    int alt = baro.getHeightCentiMeters();
+    float altInM = (alt + 0.0f) / 100.0f;
+    // String altStr = String(altInCm, 2);  // Convert float to String with 2 decimal places
+    // Convert float to char array
+    dtostrf(altInM, 4, 3, datastr);
+    // Serial.println(altStr);
+    // write2Sd("Altitude.csv", altStr);
+    write2Sd("Altitude.csv");
+  }
+  digitalWrite(LEDPIN, HIGH);  // turn the LED on (HIGH is the voltage level)
+  delay(1000);                 // wait for a second
+  digitalWrite(LEDPIN, LOW);   // turn the LED off by making the voltage LOW
+  delay(1000);                 // wait for a second   // turn the LED off by making the voltage LOW
 }
 
 void write2Sd(char *file_name) {
