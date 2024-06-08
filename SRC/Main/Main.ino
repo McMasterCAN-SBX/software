@@ -33,6 +33,7 @@ File myFile;
 // Variables for DHT-22
 float hum;   // Stores humidity value
 float temp;  // Stores temperature value
+// char flstr[20], output[100];
 
 void setup() {
   // Serial setup
@@ -46,82 +47,102 @@ void setup() {
 
   // Initialize Ozone Sensor
   while (!Ozone.begin(Ozone_IICAddress)) {
-    Serial.println("I2c device number error!");
+    Serial.println(F("I2c device number error!"));
     delay(1000);
   }
-  Serial.println("I2c connect success!");
+  Serial.println(F("I2c connect success!"));
   Ozone.setModes(MEASURE_MODE_PASSIVE);
 
   // Initialize Barometric Pressure Sensor
   baro.init();
 
   // Initialize SD Card
-  Serial.print("\nInitializing SD card...");
+  // Serial.print(F("\nInitializing SD card..."));
   if (!card.init(SPI_HALF_SPEED, chipSelect)) {
-    Serial.println("Initialization failed. Things to check:");
-    Serial.println("* Is a card inserted?");
-    Serial.println("* Is your wiring correct?");
-    Serial.println("* Did you change the chipSelect pin to match your shield or module?");
+    // Serial.println(F("Initialization failed. Things to check:"));
+    // Serial.println(F("* Is a card inserted?"));
+    // Serial.println(F("* Is your wiring correct?"));
+    // Serial.println(F("* Did you change the chipSelect pin to match your shield or module?"));
     while (1)
       ;
   } else {
-    Serial.println("Wiring is correct and a card is present.");
+    Serial.println(F("Wiring is correct and a card is present."));
   }
 
   // Print the type of card
-  Serial.print("Card type: ");
+  Serial.print(F("Card type: "));
   switch (card.type()) {
     case SD_CARD_TYPE_SD1:
-      Serial.println("SD1");
+      Serial.println(F("SD1"));
       break;
     case SD_CARD_TYPE_SD2:
-      Serial.println("SD2");
+      Serial.println(F("SD2"));
       break;
     case SD_CARD_TYPE_SDHC:
-      Serial.println("SDHC");
+      Serial.println(F("SDHC"));
       break;
     default:
-      Serial.println("Unknown");
+      Serial.println(F("Unknown"));
   }
 
   // Open the volume/partition
   if (!volume.init(card)) {
-    Serial.println("Could not find FAT16/FAT32 partition. Make sure you've formatted the card.");
+    Serial.println(F("Could not find FAT16/FAT32 partition. Make sure you've formatted the card."));
     while (1)
       ;
   }
 
   // Print the volume details
-  Serial.print("Clusters: ");
-  Serial.println(volume.clusterCount());
-  Serial.print("Blocks x Cluster: ");
-  Serial.println(volume.blocksPerCluster());
-  Serial.print("Total Blocks: ");
-  Serial.println(volume.blocksPerCluster() * volume.clusterCount());
+  // Serial.print(F("Clusters: "));
+  // Serial.println(volume.clusterCount());
+  // Serial.print(F("Blocks x Cluster: "));
+  // Serial.println(volume.blocksPerCluster());
+  // Serial.print(F("Total Blocks: "));
+  // Serial.println(volume.blocksPerCluster() * volume.clusterCount());
 
   uint32_t volumesize = volume.blocksPerCluster() * volume.clusterCount() / 2;  // SD card blocks are always 512 bytes (2 blocks are 1KB)
-  Serial.print("Volume size (Kb): ");
-  Serial.println(volumesize);
-  Serial.print("Volume size (Mb): ");
-  Serial.println(volumesize / 1024);
-  Serial.print("Volume size (Gb): ");
-  Serial.println((float)volumesize / 1024.0);
+  // Serial.print(F("Volume size (Kb): "));
+  // Serial.println(volumesize);
+  // Serial.print(F("Volume size (Mb): "));
+  // Serial.println(volumesize / 1024);
+  // Serial.print(F("Volume size (Gb): "));
+  // Serial.println((float)volumesize / 1024.0);
 
-  Serial.println("\nFiles found on the card (name, date, and size in bytes):");
+  // Serial.println(F("\nFiles found on the card (name, date, and size in bytes):"));
   root.openRoot(volume);
   root.ls(LS_R | LS_DATE | LS_SIZE);
 
   // Additional SD Card Initialization and File Operations
-  Serial.print("Initializing SD card...");
+  Serial.print(F("Initializing SD card..."));
   if (!SD.begin(chipSelect)) {
-    Serial.println("Initialization failed!");
+    Serial.println(F("Initialization failed!"));
     while (1)
       ;
   }
-  Serial.println("Initialization done.");
-  SD.remove("Altitude.txt");
-  SD.remove("Ozone.txt");
-  SD.remove("dht22.txt");
+  Serial.println(F("Initialization done."));
+  myFile = SD.open("dht22.csv", FILE_WRITE);
+  if (myFile) {
+    myFile.println("*******************************");
+    myFile.close();
+  } else {
+    Serial.println(F("Error opening dht22.csv"));
+  }
+
+  myFile = SD.open("Ozone.csv", FILE_WRITE);
+  if (myFile) {
+    myFile.println("*******************************");
+    myFile.close();
+  } else {
+    Serial.println(F("Error opening Ozone.csv"));
+  }
+  
+  myFile = SD.open("Altitude.csv", FILE_WRITE);
+  if (myFile) {
+    myFile.println("*******************************");
+    myFile.close();
+  } else {
+    Serial.println(F("Error opening Altitude.csv"));
+  }
 }
 
 void loop() {
@@ -129,7 +150,7 @@ void loop() {
   hum = dht.readHumidity();
   temp = dht.readTemperature();
   String humStr = String(hum, 2) + "," + String(temp, 2);
-  write2Sd("dht22.txt", humStr);
+  write2Sd("dht22.csv", humStr);
   // Serial.print("Humidity: ");
   // Serial.print(hum);
   // Serial.print(" %, Temp: ");
@@ -139,7 +160,7 @@ void loop() {
 
   int16_t ozoneConcentration = Ozone.readOzoneData(COLLECT_NUMBER);
   String ozoneConc = String(ozoneConcentration);
-  write2Sd("Ozone.txt", ozoneConc);
+  write2Sd("Ozone.csv", ozoneConc);
   // Serial.print("Ozone concentration is ");
   // Serial.print(ozoneConcentration);
   // Serial.println(" PPB.");
@@ -150,7 +171,7 @@ void loop() {
   String altStr = String(altInCm, 2);  // Convert float to String with 2 decimal places
   // Convert float to char array
   Serial.println(altStr);
-  write2Sd("Altitude.txt", altStr);
+  write2Sd("Altitude.csv", altStr);
 
   digitalWrite(1, LOW);  // turn the LED on (HIGH is the voltage level)
   delay(1000);            // wait for a second
@@ -164,11 +185,12 @@ void write2Sd(char *file_name, String data) {
   unsigned long seconds = currentTime / 1000;
   unsigned long minutes = seconds / 60;
   unsigned long hours = minutes / 60;
+  unsigned long mil = currentTime % 1000;
   seconds = seconds % 60;
   minutes = minutes % 60;
 
   // Create a buffer to hold the time string
-  String timeStr = String(hours) + ":" + (minutes < 10 ? "0" : "") + String(minutes) + ":" + (seconds < 10 ? "0" : "") + String(seconds);
+  String timeStr = String(hours) + ":" + (minutes < 10 ? "0" : "") + String(minutes) + ":" + (seconds < 10 ? "0" : "") + String(seconds) + "." + String(mil);
 
   timeStr = timeStr + "," + data;
   Serial.println(timeStr);
@@ -180,6 +202,6 @@ void write2Sd(char *file_name, String data) {
     Serial.println(timeStr);
     myFile.close();
   } else {
-    Serial.println("Error opening test.txt");
+    Serial.println(F("Error opening test.csv"));
   }
 }
