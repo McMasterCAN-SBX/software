@@ -10,6 +10,8 @@
 #include <SPI.h>
 #include <SD.h>
 
+#define LEDPIN 1
+
 // DHT-22 Configuration
 #define DHTPIN 7           // Pin connected to DHT22
 #define DHTTYPE DHT22      // DHT 22 (AM2302)
@@ -33,7 +35,7 @@ File myFile;
 // Variables for DHT-22
 float hum;   // Stores humidity value
 float temp;  // Stores temperature value
-// char flstr[20], output[100];
+char fla[20], flb[20], datastr[50], output[100];
 
 void setup() {
   // Serial setup
@@ -135,7 +137,7 @@ void setup() {
   } else {
     Serial.println(F("Error opening Ozone.csv"));
   }
-  
+
   myFile = SD.open("Altitude.csv", FILE_WRITE);
   if (myFile) {
     myFile.println("*******************************");
@@ -149,57 +151,59 @@ void loop() {
 
   hum = dht.readHumidity();
   temp = dht.readTemperature();
-  String humStr = String(hum, 2) + "," + String(temp, 2);
-  write2Sd("dht22.csv", humStr);
+  // String humStr = String(hum, 2) + "," + String(temp, 2);
+  dtostrf(hum, 4, 3, fla);
+  dtostrf(temp, 4, 3, flb);
+  sprintf(datastr, "%s,%s", hum, temp);
+  // write2Sd("dht22.csv", humStr);
+  write2Sd("dht22.csv");
   // Serial.print("Humidity: ");
   // Serial.print(hum);
   // Serial.print(" %, Temp: ");
   // Serial.print(temp);
   // Serial.println(" Celsius");
-
-
   int16_t ozoneConcentration = Ozone.readOzoneData(COLLECT_NUMBER);
-  String ozoneConc = String(ozoneConcentration);
-  write2Sd("Ozone.csv", ozoneConc);
+  sprintf(datastr, "%hd", ozoneConcentration);
+  // write2Sd("Ozone.csv", ozoneConc);
+  write2Sd("Ozone.csv");
   // Serial.print("Ozone concentration is ");
   // Serial.print(ozoneConcentration);
   // Serial.println(" PPB.");
 
   // Barometric Pressure Sensor: Read and print height in centimeters and feet
   int alt = baro.getHeightCentiMeters();
-  float altInCm = (float)alt;
-  String altStr = String(altInCm, 2);  // Convert float to String with 2 decimal places
+  float altInM = (alt + 0.0f) / 100.0f;
+  // String altStr = String(altInCm, 2);  // Convert float to String with 2 decimal places
   // Convert float to char array
-  Serial.println(altStr);
-  write2Sd("Altitude.csv", altStr);
-
-  digitalWrite(1, LOW);  // turn the LED on (HIGH is the voltage level)
+  dtostrf(altInM, 4, 3, datastr);
+  // Serial.println(altStr);
+  // write2Sd("Altitude.csv", altStr);
+  write2Sd("Altitude.csv");
+  digitalWrite(LEDPIN, HIGH);   // turn the LED on (HIGH is the voltage level)
   delay(1000);            // wait for a second
-  digitalWrite(1, HIGH);   // turn the LED off by making the voltage LOW
+  digitalWrite(LEDPIN, LOW);  // turn the LED off by making the voltage LOW
   delay(1000);            // wait for a second   // turn the LED off by making the voltage LOW
 }
 
-
-void write2Sd(char *file_name, String data) {
+void write2Sd(char *file_name) {
   unsigned long currentTime = millis();
   unsigned long seconds = currentTime / 1000;
   unsigned long minutes = seconds / 60;
   unsigned long hours = minutes / 60;
-  unsigned long mil = currentTime % 1000;
+  unsigned long milliseconds = currentTime % 1000;
   seconds = seconds % 60;
   minutes = minutes % 60;
-
   // Create a buffer to hold the time string
-  String timeStr = String(hours) + ":" + (minutes < 10 ? "0" : "") + String(minutes) + ":" + (seconds < 10 ? "0" : "") + String(seconds) + "." + String(mil);
-
-  timeStr = timeStr + "," + data;
-  Serial.println(timeStr);
+  // String timeStr = String(hours) + ":" + (minutes < 10 ? "0" : "") + String(minutes) + ":" + (seconds < 10 ? "0" : "") + String(seconds) + "." + String(milliseconds);
+  // timeStr = timeStr + "," + data;
+  sprintf(output, "%d:%02d:%02d.%d,%s", hours, minutes, seconds, milliseconds, datastr);
+  Serial.println(output);
   myFile = SD.open(file_name, FILE_WRITE);
   Serial.println(file_name);
   if (myFile) {
     Serial.println(file_name);
-    myFile.println(timeStr);
-    Serial.println(timeStr);
+    myFile.println(output);
+    Serial.println(output);
     myFile.close();
   } else {
     Serial.println(F("Error opening test.csv"));
